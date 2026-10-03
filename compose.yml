@@ -1,0 +1,85 @@
+    image: ghcr.io/ggml-org/llama.cpp:server-rocm-b11058
+    container_name: llama-server
+
+    devices:
+      - /dev/kfd
+      - /dev/dri
+
+    group_add:
+      - "${RENDER_GID}"
+
+    security_opt:
+      - seccomp=unconfined
+
+    volumes:
+      - ./models:/models:ro
+
+    ports:
+      - "11434:11434"
+
+    # llama-server tuning
+    # - Qwen3.5-35B-A3B (IQ4_XS): Hybrid mode for memory efficiency
+    # - GPU offload + CPU fallback for larger context
+    # - Single-user / low-latency optimization
+    # - 16K context window with hybrid VRAM/CPU memory
+    # - Ryzen 7 980X3D: 8 physical cores (4 threads each)
+    # - Flash Attention enabled for faster inference
+    # - Automatic VRAM fitting enabled for dynamic allocation
+    command:
+      - -m
+      - /models/${MODEL}
+
+      - --host
+      - 0.0.0.0
+
+      - --port
+      - "11434"
+
+      - --device
+      - ROCm0
+
+      - --split-mode
+      - none
+
+      - --main-gpu
+      - "0"
+
+      # Hybrid mode: GPU layers + CPU fallback for memory efficiency
+      - -ngl
+      - "99"
+
+      - -np
+      - "1"
+
+      - -c
+      - "16384"
+
+      - -b
+      - "2048"
+
+      - -ub
+      - "1024"
+
+      - -t
+      - "8"
+
+      - -tb
+      - "8"
+
+      - --flash-attn
+      - on
+
+      # Automatic VRAM fitting for hybrid mode
+      - --fit
+      - on
+
+      - --temp
+      - "0.3"
+
+      - --top-p
+      - "0.9"
+
+      - --repeat-penalty
+      - "1.1"
+
+    restart: unless-stopped
